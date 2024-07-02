@@ -7,7 +7,7 @@ void Auth::registerUser(const std::string& username, const std::string& password
     }
     users[username] = password;
 }
-
+// Auth 
 bool Auth::login(const std::string& username, const std::string& password) const {
     auto it = users.find(username);
     if (it == users.end() || it->second != password) {
