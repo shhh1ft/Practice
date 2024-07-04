@@ -1,119 +1,186 @@
-﻿#include <iostream>
-#include <limits>
+#include <iostream>
 #include <Windows.h>
 #include "Register.h"
 #include "Captha.h"
 #include "Auth.h"
 #include "ParSystem.h"
 
+
+void showInitialMenu() {
+    std::cout << "\nМеню:\n"
+        "1. Регистрация\n"
+        "2. Авторизация\n"
+        "3. Выход\n"
+        "Выберите действие: ";
+}
+
+void showMainMenu() {
+    std::cout << "\nМеню:\n"
+        "1. Установить системный параметр\n"
+        "2. Получить системный параметр\n"
+        "3. Выход\n"
+        "Выберите действие: ";
+}
+
+void handleRegistration(Auth& auth) {
+    try {
+        std::string username, password;
+        std::cout << "Введите имя пользователя для регистрации: ";
+        std::cin >> username;
+        std::cout << "Введите пароль: ";
+        std::cin >> password;
+
+        RegistrationData regData;
+        regData.setUsername(username);
+        regData.setPassword(password);
+
+        auth.registerUser(regData.getUsername(), regData.getPassword());
+        
+        std::cout << "Регистрация успешна. Пожалуйста, авторизуйтесь.\n";
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Ошибка регистрации: " << e.what() << std::endl;
+    }
+}
+
+
+bool handleLogin(Auth& auth) {
+    try {
+        std::string username, password;
+        std::cout << "Введите имя пользователя: ";
+        std::cin >> username;
+        std::cout << "Введите пароль: ";
+        std::cin >> password;
+
+        bool loggedIn = auth.login(username, password);
+        std::cout << loggedIn;
+        if (loggedIn) {
+            std::cout << "Авторизация успешна.\n";
+            return true;
+        }
+        else {
+            std::cout << "Ошибка авторизации.\n";
+            return false;
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Ошибка авторизации: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool handleCaptcha() {
+    try {
+        Captcha captcha;
+        std::string captchaCode = captcha.getCaptcha();
+        std::string input;
+
+        std::cout << "Капча: " << captchaCode << "\n";
+        std::cout << "Введите капчу: ";
+        std::cin >> input;
+
+        if (captcha.verifyCaptcha(input)) {
+            std::cout << "Капча введена правильно.\n";
+            return true;
+        }
+        else {
+            std::cout << "Капча введена неправильно.\n";
+            return false;
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Ошибка проверки капчи: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+void handleSetSystemParameter(SystemParameters& sysParams) {
+    try {
+        std::string key, value;
+        std::cout << "Введите имя параметра: ";
+        std::cin >> key;
+        std::cout << "Введите значение параметра: ";
+        std::cin >> value;
+
+        sysParams.setParameter(key, value);
+        std::cout << "Параметр установлен.\n";
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Ошибка установки параметра: " << e.what() << std::endl;
+    }
+}
+
+void handleGetSystemParameter(SystemParameters& sysParams) {
+    try {
+        std::string key;
+        std::cout << "Введите имя параметра: ";
+        std::cin >> key;
+
+        std::string value = sysParams.getParameter<std::string>(key);
+        std::cout << "Значение параметра " << key << ": " << value << "\n";
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Ошибка получения параметра: " << e.what() << std::endl;
+    }
+}
+
 int main() {
     SetConsoleCP(1251);
     setlocale(LC_ALL, "rus");
 
-    try {
-        int choice;
-        while (true) {
-            std::cout << "Меню:" << std::endl;
-            std::cout << "1. Регистрация" << std::endl;
-            std::cout << "2. Авторизация" << std::endl;
-            std::cout << "3. Системные параметры" << std::endl;
-            std::cout << "4. Выход из меню" << std::endl;
-            std::cout << "Выберите действие (1-4): ";
+    Auth auth;
+    SystemParameters sysParams;
+
+    bool isAuthenticated = false;
+    bool isCaptchaPassed = false;
+
+    while (true) {
+        if (!isAuthenticated) {
+            showInitialMenu();
+            int choice;
             std::cin >> choice;
 
             switch (choice) {
-            case 1: {
-                RegistrationData regData;
-                std::string user_name;
-                std::string user_pass;
-                std::cout << "Введите имя пользователя" << '\n';
-                std::cin >> user_name;
-                std::cout << "Введите пароль" << '\n';
-                std::cin >> user_pass;
-                regData.setUsername(user_name);
-                regData.setPassword(user_pass);
-
-                // Капча
-                Captcha captcha;
-                std::string captchaCode = captcha.getCaptcha();
-                std::cout << "Капча: " << captchaCode << std::endl;
-
-                std::string input;
-                std::cout << "Введите капчу: ";
-                std::cin >> input;
-
-                bool captchaPassed = captcha.verifyCaptcha(input);
-                if (!captchaPassed) {
-                    std::cerr << "Неверная капча. Регистрация не удалась." << std::endl;
-
-                    // Капча попытки
-                    int attempts = 0;
-                    bool captchaPassed = false;
-                    while (attempts < 3 && !captchaPassed) {
-                        try {
-                            Captcha captcha;
-                            std::string captchaCode = captcha.getCaptcha();
-                            std::cout << "Капча: " << captchaCode << std::endl;
-
-                            std::string input;
-                            std::cout << "Введите капчу: ";
-                            std::cin >> input;
-
-                            captchaPassed = captcha.verifyCaptcha(input);
-                            if (!captchaPassed) {
-                                std::cout << "Неверная капча. Попробуйте ещё раз." << std::endl;
-                                attempts++;
-                            }
-                        }
-                        catch (const std::exception& e) {
-                            std::cerr << "Ошибка капчи: " << e.what() << std::endl;
-                            attempts++;
-                        }
+            case 1:
+                handleRegistration(auth);
+                break;
+            case 2:
+                if (handleLogin(auth)) {
+                    if (handleCaptcha()) {
+                        isAuthenticated = true;
+                        isCaptchaPassed = true;
                     }
-
-                    if (!captchaPassed) {
-                        throw std::runtime_error("Превышено количество попыток ввода капчи.");
+                    else {
+                        std::cout << "Повторите авторизацию.\n";
                     }
-                    break;
                 }
-
-                std::cout << "Пользователь зарегистрирован." << std::endl;
                 break;
-            }
-            case 2: {
-                Auth auth;
-                std::string username, password;
-                std::cout << "Введите имя пользователя: ";
-                std::cin >> username;
-                std::cout << "Введите пароль: ";
-                std::cin >> password;
-
-                bool loggedIn = auth.login(username, password);
-                std::cout << "Успешная авторизация: " << std::boolalpha << loggedIn << std::endl;
-                break;
-            }
-            case 3: {
-                SystemParameters sysParams;
-                sysParams.setParameter("max_users", "100");
-                int maxUsers = sysParams.getParameter<int>("max_users");
-                std::cout << "Максимальное число пользователей: " << maxUsers << std::endl;
-                break;
-            }
-            case 4: {
+            case 3:
+                std::cout << "Выход из программы.\n";
                 return 0;
-                break;
-            }
             default:
-                std::cerr << "Неверный выбор. Попробуйте ещё раз." << std::endl;
-                std::cin.clear();
-                std::cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
-                continue;
+                std::cerr << "Неверный выбор. Пожалуйста, выберите снова.\n";
+            }
+        }
+        else if (isAuthenticated && isCaptchaPassed) {
+            showMainMenu();
+            int choice;
+            std::cin >> choice;
+
+            switch (choice) {
+            case 1:
+                handleSetSystemParameter(sysParams);
+                break;
+            case 2:
+                handleGetSystemParameter(sysParams);
+                break;
+            case 3:
+                std::cout << "Выход из программы.\n";
+                return 0;
+            default:
+                std::cerr << "Неверный выбор. Пожалуйста, выберите снова.\n";
             }
         }
     }
-    catch (const std::exception& e) {
-        std::cerr << "Ошибка: " << e.what() << std::endl;
-    }
-
     return 0;
 }
